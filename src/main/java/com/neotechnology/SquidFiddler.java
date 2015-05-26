@@ -1,12 +1,13 @@
 package com.neotechnology;
 
+
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.helpers.collection.IteratorUtil;
 
 
 class SquidFiddler {
-    private static final String NODES = "nodes";
+
     private static final String NEO_DIR = "/Users/jsimpson/Documents/workspace/neo-technology/science/neo4j";
     private static final String CONF_PATH = NEO_DIR + "/conf/";
     private static final String DB_PATH = NEO_DIR + "/data/graph.db";
@@ -33,6 +34,7 @@ class SquidFiddler {
     }
 
     private ResourceIterator<Node> getPings() {
+        System.out.print("Getting all the pings ...");
 
         Label label = DynamicLabel.label("Ping");
         ResourceIterator<Node> allPings;
@@ -41,35 +43,61 @@ class SquidFiddler {
             allPings = graphDb.findNodes(label);
             tx.success();
         }
+        System.out.println("... done.");
         return allPings;
     }
 
-    private void fix_labels() {
-
-        ResourceIterator<Node> allPings = getPings();
+    private void applyFix(String propName, Node ping, Object property) {
         try (Transaction tx = graphDb.beginTx()) {
-            for (Node ping : IteratorUtil.asIterable(allPings)) {
-
-                if (ping.hasProperty(NODES)) {
-
-                    Object property = ping.getProperty(NODES);
-                    if (property.getClass() == String.class) {
-                        System.out.println("setting " + property + " back to long");
-                        ping.setProperty(NODES, new Long(property.toString()));
-                    }
-
-
-                }
-
-
-            }
+            Long newValue = new Long(property.toString());
+            ping.setProperty(propName, newValue);
             tx.success();
         }
-
     }
 
+    private boolean hasProperty(Node ping, String prop) {
+        boolean hasProperty;
+        try (Transaction tx = graphDb.beginTx()) {
+            hasProperty = ping.hasProperty(prop);
+            tx.success();
+        }
+        return hasProperty;
+    }
+
+    private Object getProperty(Node ping, String prop) {
+        Object pingProperty;
+        try (Transaction tx = graphDb.beginTx()) {
+            pingProperty = ping.getProperty(prop);
+            tx.success();
+        }
+        return pingProperty;
+    }
+
+    private void fixProperties() {
+        String[] propertyNames = {"rels", "nodes", "labels", "props", "heapsize"};
+        ResourceIterator<Node> pings = getPings();
+
+        for (Node ping : IteratorUtil.asIterable(pings)) {
+
+            for (String prop : propertyNames) {
+
+                if (hasProperty(ping, prop)) {
+                    Object property = getProperty(ping, prop);
+                    if (property.getClass() == String.class) {
+                        applyFix(prop, ping, property);
+                    }
+                }
+            }
+
+            System.out.print(".");
+
+        }
+        System.out.println("done");
+    }
+
+
     public static void main(String[] args) {
-        new SquidFiddler().fix_labels();
+        new SquidFiddler().fixProperties();
     }
 
 }
